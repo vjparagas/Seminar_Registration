@@ -6,9 +6,10 @@ import { UiAccepted, formatTime, resendEmail } from "@/lib/client";
 type Props = {
   rows: UiAccepted[];
   onChanged: () => void;
+  initialFilter?: Filter;
 };
 
-type Filter = "All" | "Not checked in" | "Checked in" | "Email failed";
+export type Filter = "All" | "Not checked in" | "Checked in" | "Email failed";
 const filters: Filter[] = ["All", "Not checked in", "Checked in", "Email failed"];
 
 function emailBadge(status: string) {
@@ -23,10 +24,9 @@ function matches(r: UiAccepted, f: Filter) {
   if (f === "Email failed") return r.emailStatus.startsWith("Failed");
   return true;
 }
-
-export default function AcceptedTab({ rows, onChanged }: Props) {
+export default function AcceptedTab({ rows, onChanged, initialFilter }: Props) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("All");
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? "All");
   const [sending, setSending] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
     null

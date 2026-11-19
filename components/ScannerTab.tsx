@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Html5Qrcode } from "html5-qrcode";
 import { CheckinResponse, formatTime } from "@/lib/client";
 
 type Props = {
@@ -9,43 +10,127 @@ type Props = {
 
 type Entry = { ok: boolean; message: string; time: string };
 
+const SCAN_LOCK_MS = 2000; // ignore new scans for 2 seconds after one
+
 export default function ScannerTab({ onCheckIn }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const lockRef = useRef(false);
+  const onCheckInRef = useRef(onCheckIn);
+
   const [ticketId, setTicketId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState("");
   const [result, setResult] = useState<Entry | null>(null);
   const [recent, setRecent] = useState<Entry[]>([]);
 
-  async function handleSubmit() {
-    if (ticketId.trim() === "" || busy) return;
+  // Keep the latest onCheckIn available to the camera callback.
+  useEffect(() => {
+    onCheckInRef.current = onCheckIn;
+  }, [onCheckIn]);
+
+  // Turn the camera off when leaving this tab.
+  useEffect(() => {
+    return () => {
+      const scanner = scannerRef.current;
+      if (scanner) {
+        scanner
+          .stop()
+          .then(() => scanner.clear())
+          .catch(() => {});
+      }
+    };
+  }, []);
+
+  async function submit(rawId: string) {
+    const id = rawId.trim();
+    if (id === "") return;
     setBusy(true);
-    const res = await onCheckIn(ticketId);
+    const res = await onCheckInRef.current(id);
     setBusy(false);
 
+    const time = new Date().toISOString();
     let entry: Entry;
+    let headline: string;
     if (res.ok) {
       entry = {
         ok: true,
         message: `${res.name}${res.organization ? ` (${res.organization})` : ""}`,
-        time: new Date().toISOString(),
+        time,
       };
+      headline = `Checked in: ${entry.message}`;
     } else if (res.status === 409) {
       entry = {
         ok: false,
         message: `Already checked in: ${res.name ?? ""}${
           res.checkedInAt ? ` at ${formatTime(res.checkedInAt)}` : ""
         }`,
-        time: new Date().toISOString(),
+        time,
       };
+      headline = entry.message;
     } else {
-      entry = { ok: false, message: res.error, time: new Date().toISOString() };
+      entry = { ok: false, message: res.error, time };
+      headline = entry.message;
     }
 
-    setResult({ ...entry, message: res.ok ? `Checked in: ${entry.message}` : entry.message });
+    setResult({ ...entry, message: headline });
     setRecent((prev) => [entry, ...prev].slice(0, 5));
+  }
+
+  async function handleManualSubmit() {
+    if (ticketId.trim() === "" || busy) return;
+    const id = ticketId;
     setTicketId("");
-    // Ready for the next scan right away.
+    await submit(id);
+    // Ready for the next entry right away.
     inputRef.current?.focus();
+  }
+
+  async function startCamera() {
+    setCameraError("");
+    try {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      const scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          // 2-second scan lock so one QR is not submitted many times.
+          if (lockRef.current) return;
+          lockRef.current = true;
+          setTimeout(() => {
+            lockRef.current = false;
+          }, SCAN_LOCK_MS);
+          void submit(decodedText);
+        },
+        () => {
+          // No QR in this frame. Ignore.
+        }
+      );
+      setCameraOn(true);
+    } catch (err) {
+      scannerRef.current = null;
+      const msg = err instanceof Error ? err.message : String(err);
+      setCameraError(
+        `Could not open the camera. Allow camera access in your browser (needs https or localhost). ${msg}`
+      );
+    }
+  }
+
+  async function stopCamera() {
+    const scanner = scannerRef.current;
+    scannerRef.current = null;
+    if (scanner) {
+      try {
+        await scanner.stop();
+        scanner.clear();
+      } catch {
+        // already stopped
+      }
+    }
+    setCameraOn(false);
   }
 
   return (
@@ -53,35 +138,57 @@ export default function ScannerTab({ onCheckIn }: Props) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <h2 className="font-bold mb-1">Check in an attendee</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Scan the QR code with a scanner, or type the Ticket ID and press
+          Scan the QR code with the camera, or type the Ticket ID and press
           Enter.
         </p>
 
-        {/* Camera goes here. The scanner person replaces this box.
-            The QR contains ONLY the Ticket ID, so pass the scanned text
-            to handleSubmit / onCheckIn. */}
-        <div className="bg-gray-100 border border-dashed border-gray-300 rounded-lg h-40 flex items-center justify-center text-gray-400 text-sm mb-4">
-          Camera view (coming soon)
-        </div>
+        {/* Camera. The library draws the video inside this box. */}
+        <div
+          id="qr-reader"
+          className={
+            cameraOn
+              ? "w-full overflow-hidden rounded-lg mb-3"
+              : "hidden"
+          }
+        />
+        {!cameraOn && (
+          <div className="bg-gray-100 border border-dashed border-gray-300 rounded-lg h-40 flex items-center justify-center text-gray-400 text-sm mb-3">
+            Camera is off
+          </div>
+        )}
+
+        {cameraError && (
+          <p className="text-sm text-red-600 mb-3">{cameraError}</p>
+        )}
+
+        <button
+          onClick={cameraOn ? stopCamera : startCamera}
+          className={`w-full rounded-lg px-4 py-2 text-sm font-medium mb-4 border ${
+            cameraOn
+              ? "border-gray-300 text-gray-700 hover:bg-gray-100"
+              : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {cameraOn ? "Stop camera" : "Start camera"}
+        </button>
 
         <label className="block text-sm font-medium mb-1" htmlFor="ticket">
-          Ticket ID
+          Or type the Ticket ID
         </label>
         <div className="flex gap-2">
           <input
             id="ticket"
             ref={inputRef}
-            autoFocus
             autoComplete="off"
             autoCapitalize="characters"
             value={ticketId}
             onChange={(e) => setTicketId(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            onKeyDown={(e) => e.key === "Enter" && handleManualSubmit()}
             placeholder="e.g. A1B2C3D4E5"
             className="border border-gray-300 rounded-lg px-3 py-2 flex-1 font-mono bg-white text-gray-900"
           />
           <button
-            onClick={handleSubmit}
+            onClick={handleManualSubmit}
             disabled={busy || ticketId.trim() === ""}
             className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40"
           >

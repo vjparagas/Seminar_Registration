@@ -2,7 +2,7 @@ import Link from "next/link";
 
 // Public landing page for attendees.
 // The Register button opens the Google Form whose link is set in FORM_URL
-// (.env.local). Organizers use the "Organizer login" link.
+// (.env.local). Organizers use the "Organizer login" button.
 
 const steps = [
   {
@@ -27,23 +27,25 @@ export default function Home() {
   const formUrl = process.env.FORM_URL;
 
   return (
-    <main className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+    <main className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       <header className="flex items-center justify-between px-6 py-4">
-        <span className="font-semibold">Seminar Registration</span>
+        <span className="font-semibold text-slate-800">
+          Seminar Registration
+        </span>
         <Link
           href="/login"
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-600 hover:bg-white"
+          className="text-sm font-medium bg-slate-800 text-white rounded-lg px-4 py-2 shadow-sm hover:bg-slate-700"
         >
           Organizer login
         </Link>
       </header>
 
-      <section className="bg-gradient-to-b from-blue-600 to-blue-700 text-white">
+      <section className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
         <div className="max-w-3xl mx-auto px-6 py-16 text-center">
           <h1 className="text-4xl font-bold mb-3">
             Reserve your seat at the seminar
           </h1>
-          <p className="text-blue-100 mb-8 max-w-xl mx-auto">
+          <p className="text-indigo-100 mb-8 max-w-xl mx-auto">
             Register once and get a personal QR code ticket by email for fast
             check-in at the door.
           </p>
@@ -53,7 +55,7 @@ export default function Home() {
               href={formUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-white text-blue-700 rounded-lg px-8 py-3 font-semibold hover:bg-blue-50"
+              className="inline-block bg-white text-indigo-700 rounded-lg px-8 py-3 font-semibold shadow-sm hover:bg-indigo-50"
             >
               Register now
             </a>
@@ -66,19 +68,21 @@ export default function Home() {
       </section>
 
       <section className="max-w-3xl w-full mx-auto px-6 py-12">
-        <h2 className="text-xl font-bold mb-6 text-center">How it works</h2>
+        <h2 className="text-xl font-bold mb-6 text-center text-slate-800">
+          How it works
+        </h2>
         <ol className="grid gap-4 sm:grid-cols-2">
           {steps.map((s, i) => (
             <li
               key={s.title}
-              className="bg-white rounded-xl border border-gray-200 p-4 flex gap-3"
+              className="bg-white rounded-xl border border-slate-200 p-4 flex gap-3"
             >
-              <span className="flex-none w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center">
+              <span className="flex-none w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
                 {i + 1}
               </span>
               <div>
-                <p className="font-semibold">{s.title}</p>
-                <p className="text-sm text-gray-600">{s.text}</p>
+                <p className="font-semibold text-slate-800">{s.title}</p>
+                <p className="text-sm text-slate-600">{s.text}</p>
               </div>
             </li>
           ))}

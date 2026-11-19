@@ -8,7 +8,7 @@
 // AcceptedRow does not exist yet). If they differ, change UiAccepted and
 // mapAccepted() below, nothing else.
 
-export const USE_MOCK = true;
+export const USE_MOCK = false;
 
 export type UiRegistrant = {
   email: string;
@@ -29,8 +29,8 @@ export type UiAccepted = {
   contact: string;
   acceptedAt: string;
   emailStatus: string; // "Pending" | "Sent" | "Failed: reason"
-  checkInStatus: string; // "Not Checked In" | "Checked In"
-  checkInTime: string; // ISO or ""
+  checkinStatus: string; // "Not Checked In" | "Checked In"
+  checkinTime: string; // ISO or ""
 };
 
 export type AcceptResult = {
@@ -119,8 +119,8 @@ const mockState = {
     { row: 9, reason: "Blank name" },
   ] as UiSkipped[],
   accepted: [
-    { ticketId: "A1B2C3D4E5", email: "liza@email.com", name: "Liza Garcia", organization: "PUP", contact: "09221234567", acceptedAt: "2026-11-14T08:00:00.000Z", emailStatus: "Sent", checkInStatus: "Not Checked In", checkInTime: "" },
-    { ticketId: "F6G7H8I9J0", email: "mark@email.com", name: "Mark Tan", organization: "ABC Corp", contact: "09231234567", acceptedAt: "2026-11-14T08:05:00.000Z", emailStatus: "Failed: SMTP timeout", checkInStatus: "Checked In", checkInTime: "2026-11-18T01:15:00.000Z" },
+    { ticketId: "A1B2C3D4E5", email: "liza@email.com", name: "Liza Garcia", organization: "PUP", contact: "09221234567", acceptedAt: "2026-11-14T08:00:00.000Z", emailStatus: "Sent", checkinStatus: "Not Checked In", checkinTime: "" },
+    { ticketId: "F6G7H8I9J0", email: "mark@email.com", name: "Mark Tan", organization: "ABC Corp", contact: "09231234567", acceptedAt: "2026-11-14T08:05:00.000Z", emailStatus: "Failed: SMTP timeout", checkinStatus: "Checked In", checkinTime: "2026-11-18T01:15:00.000Z" },
   ] as UiAccepted[],
 };
 
@@ -135,7 +135,7 @@ function mockStats() {
   const list = mockState.accepted;
   return {
     total: list.length,
-    checkedIn: list.filter((a) => a.checkInStatus === "Checked In").length,
+    checkedIn: list.filter((a) => a.checkinStatus === "Checked In").length,
   };
 }
 
@@ -192,8 +192,8 @@ export async function acceptEmails(emails: string[]): Promise<AcceptResponse> {
         contact: person.contact,
         acceptedAt: new Date().toISOString(),
         emailStatus: "Sent",
-        checkInStatus: "Not Checked In",
-        checkInTime: "",
+        checkinStatus: "Not Checked In",
+        checkinTime: "",
       });
       mockState.registrants = mockState.registrants.filter((r) => r.email !== email);
       return { email, status: "accepted", ticketId, emailStatus: "Sent" };
@@ -220,17 +220,17 @@ export async function checkIn(ticketId: string): Promise<CheckinResponse> {
     await wait();
     const row = mockState.accepted.find((a) => a.ticketId === id);
     if (!row) return { ok: false, error: "Invalid ticket", status: 404 };
-    if (row.checkInStatus === "Checked In") {
+    if (row.checkinStatus === "Checked In") {
       return {
         ok: false,
         error: "Already checked in",
         status: 409,
         name: row.name,
-        checkedInAt: row.checkInTime,
+        checkedInAt: row.checkinTime,
       };
     }
-    row.checkInStatus = "Checked In";
-    row.checkInTime = new Date().toISOString();
+    row.checkinStatus = "Checked In";
+    row.checkinTime = new Date().toISOString();
     return { ok: true, name: row.name, organization: row.organization, ticketId: id };
   }
   return call<CheckinResponse>("/api/checkin", "POST", { ticketId: id });

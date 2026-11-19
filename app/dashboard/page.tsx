@@ -14,7 +14,7 @@ import {
   logout,
 } from "@/lib/client";
 import RegisteredTab from "@/components/RegisteredTab";
-import AcceptedTab from "@/components/AcceptedTab";
+import AcceptedTab, { type Filter } from "@/components/AcceptedTab";
 import ScannerTab from "@/components/ScannerTab";
 
 const tabs = ["Registered", "Accepted", "Scanner"] as const;
@@ -24,16 +24,22 @@ function StatCard({
   label,
   value,
   color,
+  onClick,
 }: {
   label: string;
   value: number;
   color: string;
+  onClick: () => void;
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3">
+    <button
+      onClick={onClick}
+      className="text-left bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 hover:border-indigo-400 hover:shadow transition cursor-pointer"
+    >
       <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-    </div>
+      <p className="text-xs text-indigo-600 mt-1">View list →</p>
+    </button>
   );
 }
 
@@ -46,6 +52,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedFilter, setAcceptedFilter] = useState<Filter>("All");
+  const [filterKey, setFilterKey] = useState(0);
 
   const load = useCallback(async () => {
     setError("");
@@ -93,6 +101,13 @@ export default function DashboardPage() {
     router.push("/login");
   }
 
+  // Open the Accepted tab with a filter already chosen.
+  function openAccepted(filter: Filter) {
+    setAcceptedFilter(filter);
+    setFilterKey((k) => k + 1);
+    setTab("Accepted");
+  }
+
   const checkedInCount = accepted.filter(
     (a) => a.checkinStatus === "Checked In"
   ).length;
@@ -138,21 +153,25 @@ export default function DashboardPage() {
             label="Waiting"
             value={registered.length}
             color="text-amber-600"
+            onClick={() => setTab("Registered")}
           />
           <StatCard
             label="Accepted"
             value={accepted.length}
-            color="text-blue-600"
+            color="text-indigo-600"
+            onClick={() => openAccepted("All")}
           />
           <StatCard
             label="Checked in"
             value={checkedInCount}
             color="text-green-600"
+            onClick={() => openAccepted("Checked in")}
           />
           <StatCard
             label="Email failed"
             value={failedEmails}
             color={failedEmails > 0 ? "text-red-600" : "text-gray-400"}
+            onClick={() => openAccepted("Email failed")}
           />
         </div>
 
@@ -163,7 +182,7 @@ export default function DashboardPage() {
               onClick={() => setTab(t)}
               className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${
                 tab === t
-                  ? "border-blue-600 text-blue-600"
+                  ? "border-indigo-600 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-800"
               }`}
             >
@@ -172,7 +191,7 @@ export default function DashboardPage() {
                 <span
                   className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
                     tab === t
-                      ? "bg-blue-100 text-blue-700"
+                      ? "bg-indigo-100 text-indigo-700"
                       : "bg-gray-200 text-gray-600"
                   }`}
                 >
@@ -210,7 +229,12 @@ export default function DashboardPage() {
               />
             )}
             {tab === "Accepted" && (
-              <AcceptedTab rows={accepted} onChanged={load} />
+              <AcceptedTab
+                key={filterKey}
+                rows={accepted}
+                onChanged={load}
+                initialFilter={acceptedFilter}
+              />
             )}
             {tab === "Scanner" && (
               <ScannerTab
