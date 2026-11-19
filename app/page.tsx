@@ -1,69 +1,93 @@
-import Image from "next/image";
+import Link from "next/link";
+
+// Public landing page for attendees.
+// The Register button opens the Google Form whose link is set in FORM_URL
+// (.env.local). Organizers use the "Organizer login" button.
+
+const steps = [
+  {
+    title: "Register",
+    text: "Fill in your name, email, organization and contact number.",
+  },
+  {
+    title: "Get confirmed",
+    text: "The organizer reviews your registration and accepts you.",
+  },
+  {
+    title: "Receive your ticket",
+    text: "Your QR code ticket arrives in your email inbox.",
+  },
+  {
+    title: "Check in",
+    text: "Show the QR code at the entrance on the day of the event.",
+  },
+];
 
 export default function Home() {
+  const formUrl = process.env.FORM_URL;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+      <header className="flex items-center justify-between px-6 py-4">
+        <span className="font-semibold text-slate-800">
+          Seminar Registration
+        </span>
+        <Link
+          href="/login"
+          className="text-sm font-medium bg-slate-800 text-white rounded-lg px-4 py-2 shadow-sm hover:bg-slate-700"
+        >
+          Organizer login
+        </Link>
+      </header>
+
+      <section className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
+        <div className="max-w-3xl mx-auto px-6 py-16 text-center">
+          <h1 className="text-4xl font-bold mb-3">
+            Reserve your seat at the seminar
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-indigo-100 mb-8 max-w-xl mx-auto">
+            Register once and get a personal QR code ticket by email for fast
+            check-in at the door.
           </p>
+
+          {formUrl ? (
+            <a
+              href={formUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-white text-indigo-700 rounded-lg px-8 py-3 font-semibold shadow-sm hover:bg-indigo-50"
+            >
+              Register now
+            </a>
+          ) : (
+            <p className="inline-block text-sm bg-white/15 rounded-lg px-4 py-3">
+              Registration opens soon. The form link has not been added yet.
+            </p>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="max-w-3xl w-full mx-auto px-6 py-12">
+        <h2 className="text-xl font-bold mb-6 text-center text-slate-800">
+          How it works
+        </h2>
+        <ol className="grid gap-4 sm:grid-cols-2">
+          {steps.map((s, i) => (
+            <li
+              key={s.title}
+              className="bg-white rounded-xl border border-slate-200 p-4 flex gap-3"
+            >
+              <span className="flex-none w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
+                {i + 1}
+              </span>
+              <div>
+                <p className="font-semibold text-slate-800">{s.title}</p>
+                <p className="text-sm text-slate-600">{s.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </main>
   );
 }
