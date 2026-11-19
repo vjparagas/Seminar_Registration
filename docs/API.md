@@ -6,6 +6,11 @@ All backend endpoints follow a unified response shape:
 
 Authentication is managed via an `httpOnly` session cookie (`host_session`), issued upon login and validated both at the network edge (`proxy.ts`) and within each individual route handler.
 
+Notes for the frontend:
+- 400 error messages come from input validation and may change in wording. Display the `error` text to the user and do not match on exact strings.
+- `GET /api/sheet/check` is not documented here. It is owned by Member 3.
+- Accepted rows use the field names `checkinStatus` and `checkinTime` (lowercase "i").
+
 ---
 
 ## 1. POST /api/auth/login
@@ -27,11 +32,11 @@ Logs in the host and sets the `host_session` cookie (valid for 8 hours).
   }
   ```
 - **Error Responses**:
-  - `400 Bad Request`:
+  - `400 Bad Request` (missing password):
     ```json
     {
       "ok": false,
-      "error": "Password is required"
+      "error": "Invalid input: expected string, received undefined"
     }
     ```
   - `401 Unauthorized`:
@@ -109,6 +114,7 @@ Reads form responses from the Google Sheet, performs form standard validation on
       },
       {
         "row": 7,
+        "email": "noname@example.com",
         "reason": "Name is missing"
       }
     ]
@@ -201,7 +207,7 @@ Retrieves all accepted attendees from the `Accepted` tab, including check-in sta
 
 ## 5. POST /api/accept
 
-Accepts one or more registrants (1–20 emails per batch). Processing is performed sequentially. For each email:
+Accepts one or more registrants (1 to 20 emails per batch). Processing is performed sequentially. For each email:
 1. Verifies the email is not already accepted in the sheet or being processed in-flight.
 2. Generates a unique 10-character Ticket ID.
 3. Appends a new row to the `Accepted` tab with `emailStatus: "Pending"` and `checkinStatus: "Not Checked In"`.
@@ -244,12 +250,20 @@ Accepts one or more registrants (1–20 emails per batch). Processing is perform
     ]
   }
   ```
+  `status` is `accepted`, `skipped`, or `failed`. `failed` includes a `reason` and is used only when writing to the sheet fails. If the ticket was created but the email could not be sent, `status` is still `accepted` and `emailStatus` is `Failed: <reason>`.
 - **Error Responses**:
-  - `400 Bad Request` (Validation error):
+  - `400 Bad Request` (empty list):
     ```json
     {
       "ok": false,
       "error": "At least one email is required"
+    }
+    ```
+  - `400 Bad Request` (more than 20 emails):
+    ```json
+    {
+      "ok": false,
+      "error": "Cannot accept more than 20 emails at once"
     }
     ```
   - `401 Unauthorized`:
@@ -297,11 +311,11 @@ Resends the ticket email with the embedded QR code to an already accepted attend
   }
   ```
 - **Error Responses**:
-  - `400 Bad Request`:
+  - `400 Bad Request` (missing ticketId):
     ```json
     {
       "ok": false,
-      "error": "Ticket ID is required"
+      "error": "Invalid input: expected string, received undefined"
     }
     ```
   - `401 Unauthorized`:
@@ -318,7 +332,7 @@ Resends the ticket email with the embedded QR code to an already accepted attend
       "error": "Ticket not found"
     }
     ```
-  - `500 Internal Server Error`:
+  - `500 Internal Server Error` (example: email sending failed):
     ```json
     {
       "ok": false,
@@ -330,7 +344,7 @@ Resends the ticket email with the embedded QR code to an already accepted attend
 
 ## 7. POST /api/checkin
 
-Validates an attendee's Ticket ID, marks them as checked in, and stamps the check-in timestamp. Uses pre-update re-reading and an in-memory ticket lock to avoid race conditions.
+Validates an attendee's Ticket ID, marks them as checked in, and stamps the check-in timestamp. The ticket ID is trimmed and uppercased before lookup, so a lowercase or space-padded value still works. Uses pre-update re-reading and an in-memory ticket lock to avoid race conditions.
 
 - **Auth**: Host session required
 - **Request Body**:
@@ -349,11 +363,11 @@ Validates an attendee's Ticket ID, marks them as checked in, and stamps the chec
   }
   ```
 - **Error Responses**:
-  - `400 Bad Request`:
+  - `400 Bad Request` (missing ticketId):
     ```json
     {
       "ok": false,
-      "error": "Ticket ID is required"
+      "error": "Invalid input: expected string, received undefined"
     }
     ```
   - `401 Unauthorized`:
