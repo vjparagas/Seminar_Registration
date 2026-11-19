@@ -27,7 +27,7 @@ Do NOT poll or repeatedly check background tasks or installs. If an install seem
 ## Chunks (tick when done, then commit)
 - [x] 1. Install deps; .env.example; lib/validate.ts; lib/api.ts
 - [x] 2. lib/types.ts (Registrant, SkippedRow, AcceptedRow, FormCheckResult). Data layer: if Member 3's lib/sheets.ts and lib/formStandard.ts exist, only create lib/data.ts re-exporting them. Else create mocks in lib/mocks/ (sample data: valid rows, duplicate email, invalid email, blank name, extra column, Accepted tab with one Checked In and one Not Checked In) plus lib/data.ts. Mark assumed formStandard function names with ASSUMED comments.
-- [ ] 3. Auth: lib/auth.ts, app/api/auth/login/route.ts, app/api/auth/logout/route.ts, proxy.ts
+- [x] 3. Auth: lib/auth.ts, app/api/auth/login/route.ts, app/api/auth/logout/route.ts, proxy.ts
 - [ ] 4. lib/tickets.ts, lib/qr.ts, lib/mailer.ts, scripts/test-email.ts (run: npx tsx scripts/test-email.ts me@gmail.com)
 - [ ] 5. GET /api/registrants, GET /api/accepted
 - [ ] 6. POST /api/accept, POST /api/resend
@@ -37,3 +37,4 @@ Do NOT poll or repeatedly check background tasks or installs. If an install seem
 ## Notes from previous accounts (append below)
 - Chunk 1 done. Next.js 16.4.6 confirmed: use proxy.ts, not middleware.ts.
 - Chunk 2 done. Member 3 files not present; created lib/mocks/mockSheets.ts and lib/mocks/mockFormStandard.ts (with checkFormHeaders and cleanFormRows ASSUMED) and exposed via lib/data.ts.
+- Chunk 3 done. Created Edge-safe lib/auth.ts with jose HS256, login and logout routes, and proxy.ts matching /dashboard/:path* and /api/:path*. Cookie name is 'host_session' (8h expiration).
