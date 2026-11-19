@@ -26,13 +26,20 @@ Do NOT poll or repeatedly check background tasks or installs. If an install seem
 
 ## Chunks (tick when done, then commit)
 - [x] 1. Install deps; .env.example; lib/validate.ts; lib/api.ts
-- [ ] 2. lib/types.ts (Registrant, SkippedRow, AcceptedRow, FormCheckResult). Data layer: if Member 3's lib/sheets.ts and lib/formStandard.ts exist, only create lib/data.ts re-exporting them. Else create mocks in lib/mocks/ (sample data: valid rows, duplicate email, invalid email, blank name, extra column, Accepted tab with one Checked In and one Not Checked In) plus lib/data.ts. Mark assumed formStandard function names with ASSUMED comments.
-- [ ] 3. Auth: lib/auth.ts, app/api/auth/login/route.ts, app/api/auth/logout/route.ts, proxy.ts
-- [ ] 4. lib/tickets.ts, lib/qr.ts, lib/mailer.ts, scripts/test-email.ts (run: npx tsx scripts/test-email.ts me@gmail.com)
-- [ ] 5. GET /api/registrants, GET /api/accepted
-- [ ] 6. POST /api/accept, POST /api/resend
-- [ ] 7. POST /api/checkin
-- [ ] 8. docs/API.md (examples per route) + README setup (env vars, Google service account, Gmail App Password)
+- [x] 2. lib/types.ts (Registrant, SkippedRow, AcceptedRow, FormCheckResult). Data layer: if Member 3's lib/sheets.ts and lib/formStandard.ts exist, only create lib/data.ts re-exporting them. Else create mocks in lib/mocks/ (sample data: valid rows, duplicate email, invalid email, blank name, extra column, Accepted tab with one Checked In and one Not Checked In) plus lib/data.ts. Mark assumed formStandard function names with ASSUMED comments.
+- [x] 3. Auth: lib/auth.ts, app/api/auth/login/route.ts, app/api/auth/logout/route.ts, proxy.ts
+- [x] 4. lib/tickets.ts, lib/qr.ts, lib/mailer.ts, scripts/test-email.ts (run: npx tsx scripts/test-email.ts me@gmail.com)
+- [x] 5. GET /api/registrants, GET /api/accepted
+- [x] 6. POST /api/accept, POST /api/resend
+- [x] 7. POST /api/checkin
+- [x] 8. docs/API.md (examples per route) + README setup (env vars, Google service account, Gmail App Password)
 
 ## Notes from previous accounts (append below)
 - Chunk 1 done. Next.js 16.4.6 confirmed: use proxy.ts, not middleware.ts.
+- Chunk 2 done. Member 3 files not present; created lib/mocks/mockSheets.ts and lib/mocks/mockFormStandard.ts (with checkFormHeaders and cleanFormRows ASSUMED) and exposed via lib/data.ts.
+- Chunk 3 done. Created Edge-safe lib/auth.ts with jose HS256, login and logout routes, and proxy.ts matching /dashboard/:path* and /api/:path*. Cookie name is 'host_session' (8h expiration).
+- Chunk 4 done. Built 10-char uppercase ticket generator (crypto.randomInt), QR buffer generator (qrcode PNG), Nodemailer Gmail transporter with inline CID QR attachment and HTML-escaped attendee name, and scripts/test-email.ts loading .env.local.
+- Chunk 5 done. Implemented GET /api/registrants (validates headers, excludes accepted, returns registrants & skipped) and GET /api/accepted (returns accepted list and stats: { total, checkedIn }).
+- Chunk 6 done. Implemented POST /api/accept (sequential processing, in-flight Set, col B precheck, email dispatch, Col G write) and POST /api/resend (resends email with inline QR, updates Col G, 404/500 handling).
+- Chunk 7 done. Implemented POST /api/checkin with 404 for invalid ticket, 409 for already checked in (with name + checkedInAt), Col H/I updates, pre-update re-read, and in-memory lock per ticket (noting Sheets lack of atomic operations). Omitted export const runtime per note.
+- Chunk 8 done. Created docs/API.md with full request/response specs for all 7 routes, updated README.md with Google service account & Gmail setup, added EVENT_NAME env var, and performed architectural audit against ARCHITECTURE.md.- IMPORTANT: Do NOT add "export const runtime" to any route. It breaks with cacheComponents enabled in this project, and Node.js is the default. This overrides the Rules section above.
