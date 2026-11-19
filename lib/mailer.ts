@@ -42,7 +42,7 @@ export async function sendTicketEmail({
   name,
   ticketId,
   qrBuffer,
-  eventTitle = 'Event Registration',
+  eventTitle = process.env.EVENT_NAME || 'Event Registration',
 }: SendTicketEmailParams): Promise<{ success: boolean; error?: string }> {
   try {
     const transporter = getMailerTransport();

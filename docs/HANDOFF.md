@@ -32,7 +32,7 @@ Do NOT poll or repeatedly check background tasks or installs. If an install seem
 - [x] 5. GET /api/registrants, GET /api/accepted
 - [x] 6. POST /api/accept, POST /api/resend
 - [x] 7. POST /api/checkin
-- [ ] 8. docs/API.md (examples per route) + README setup (env vars, Google service account, Gmail App Password)
+- [x] 8. docs/API.md (examples per route) + README setup (env vars, Google service account, Gmail App Password)
 
 ## Notes from previous accounts (append below)
 - Chunk 1 done. Next.js 16.4.6 confirmed: use proxy.ts, not middleware.ts.
@@ -41,4 +41,5 @@ Do NOT poll or repeatedly check background tasks or installs. If an install seem
 - Chunk 4 done. Built 10-char uppercase ticket generator (crypto.randomInt), QR buffer generator (qrcode PNG), Nodemailer Gmail transporter with inline CID QR attachment and HTML-escaped attendee name, and scripts/test-email.ts loading .env.local.
 - Chunk 5 done. Implemented GET /api/registrants (validates headers, excludes accepted, returns registrants & skipped) and GET /api/accepted (returns accepted list and stats: { total, checkedIn }).
 - Chunk 6 done. Implemented POST /api/accept (sequential processing, in-flight Set, col B precheck, email dispatch, Col G write) and POST /api/resend (resends email with inline QR, updates Col G, 404/500 handling).
-- Chunk 7 done. Implemented POST /api/checkin with 404 for invalid ticket, 409 for already checked in (with name + checkedInAt), Col H/I updates, pre-update re-read, and in-memory lock per ticket (noting Sheets lack of atomic operations). Omitted export const runtime per note.- IMPORTANT: Do NOT add "export const runtime" to any route. It breaks with cacheComponents enabled in this project, and Node.js is the default. This overrides the Rules section above.
+- Chunk 7 done. Implemented POST /api/checkin with 404 for invalid ticket, 409 for already checked in (with name + checkedInAt), Col H/I updates, pre-update re-read, and in-memory lock per ticket (noting Sheets lack of atomic operations). Omitted export const runtime per note.
+- Chunk 8 done. Created docs/API.md with full request/response specs for all 7 routes, updated README.md with Google service account & Gmail setup, added EVENT_NAME env var, and performed architectural audit against ARCHITECTURE.md.- IMPORTANT: Do NOT add "export const runtime" to any route. It breaks with cacheComponents enabled in this project, and Node.js is the default. This overrides the Rules section above.
