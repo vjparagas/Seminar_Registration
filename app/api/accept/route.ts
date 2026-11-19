@@ -115,8 +115,8 @@ export async function POST(request: Request) {
         if (!registrantData) {
           results.push({
             email,
-            status: 'failed',
-            reason: 'Registrant with valid name not found in form responses',
+            status: 'skipped',
+            reason: 'Not found in registrants',
           });
           continue;
         }
@@ -143,7 +143,17 @@ export async function POST(request: Request) {
           checkinTime,
         ];
 
-        await appendRows('Accepted', [newRow]);
+        try {
+          await appendRows('Accepted', [newRow]);
+        } catch (err: unknown) {
+          const reason = err instanceof Error ? err.message : String(err);
+          results.push({
+            email,
+            status: 'failed',
+            reason: `Sheet write error: ${reason}`,
+          });
+          continue;
+        }
 
         // Generate QR code and send email
         const qrBuffer = await generateQrBuffer(ticketId);
