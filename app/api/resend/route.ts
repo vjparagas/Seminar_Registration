@@ -6,7 +6,6 @@ import { generateQrBuffer } from '@/lib/qr';
 import { sendTicketEmail } from '@/lib/mailer';
 import { EmailStatus } from '@/lib/types';
 
-export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const host = await requireHost(request);

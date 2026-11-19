@@ -3,7 +3,6 @@ import { requireHost } from '@/lib/auth';
 import { ensureTabs, readTab } from '@/lib/data';
 import { AcceptedRow, EmailStatus, CheckinStatus } from '@/lib/types';
 
-export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   const host = await requireHost(request);

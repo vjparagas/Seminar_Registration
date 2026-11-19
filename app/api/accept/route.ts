@@ -7,7 +7,6 @@ import { generateQrBuffer } from '@/lib/qr';
 import { sendTicketEmail } from '@/lib/mailer';
 import { EmailStatus } from '@/lib/types';
 
-export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 // Global in-memory set to prevent concurrent double-acceptance
