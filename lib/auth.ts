@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { NextResponse } from 'next/server';
 
 export const COOKIE_NAME = 'host_session';
 
@@ -40,8 +41,19 @@ export function extractSessionToken(request: Request): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-export async function requireHost(request: Request): Promise<JWTPayload | null> {
+/**
+ * Returns null when the host is signed in, and a 401 Response otherwise.
+ */
+export async function requireHost(request: Request): Promise<NextResponse | null> {
   const token = extractSessionToken(request);
-  if (!token) return null;
-  return await verifySession(token);
+  if (!token) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const session = await verifySession(token);
+  if (!session) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return null;
 }

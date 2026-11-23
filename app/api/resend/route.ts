@@ -1,17 +1,14 @@
 import { ok, fail, failZod } from '@/lib/api';
 import { requireHost } from '@/lib/auth';
 import { resendSchema } from '@/lib/validate';
-import { readTab, updateCell } from '@/lib/data';
+import { readTab, updateCell, SheetsError, ACCEPTED_TAB } from '@/lib/data';
 import { generateQrBuffer } from '@/lib/qr';
 import { sendTicketEmail } from '@/lib/mailer';
 import { EmailStatus } from '@/lib/types';
 
-
 export async function POST(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -28,7 +25,7 @@ export async function POST(request: Request) {
   const { ticketId } = parsed.data;
 
   try {
-    const rows = await readTab('Accepted');
+    const rows = await readTab(ACCEPTED_TAB);
     let targetRowIndex = -1;
 
     for (let i = 1; i < rows.length; i++) {
@@ -62,11 +59,11 @@ export async function POST(request: Request) {
 
     if (!mailResult.success) {
       const reason = `Failed: ${mailResult.error || 'Unknown error'}`;
-      await updateCell('Accepted', `G${targetRowNum}`, reason as EmailStatus);
+      await updateCell(ACCEPTED_TAB, `G${targetRowNum}`, reason as EmailStatus);
       return fail(reason, 500);
     }
 
-    await updateCell('Accepted', `G${targetRowNum}`, 'Sent' as EmailStatus);
+    await updateCell(ACCEPTED_TAB, `G${targetRowNum}`, 'Sent' as EmailStatus);
 
     return ok({
       message: 'Ticket email resent successfully',
@@ -74,6 +71,9 @@ export async function POST(request: Request) {
       email,
     });
   } catch (err: unknown) {
+    if (err instanceof SheetsError) {
+      return fail(err.message, err.status);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Failed to resend ticket: ${message}`, 500);
   }

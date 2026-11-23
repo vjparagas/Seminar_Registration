@@ -1,4 +1,17 @@
-import { FormCheckResult, Registrant, SkippedRow } from '../types';
+import { Registrant, SkippedRow } from '../types';
+
+export interface FormCheckResult {
+  ok: boolean;
+  fields?: {
+    name?: { status: string; column?: string };
+    email?: { status: string; column?: string };
+    organization?: { status: string; column?: string };
+    contact?: { status: string; column?: string };
+  };
+  missing?: string[];
+  duplicates?: string[];
+  extras?: string[];
+}
 
 // The four standard titles - single source of truth
 export const FULL_NAME = 'Full Name';
@@ -162,6 +175,7 @@ export function cleanFormRows(
       organization,
       contact,
       timestamp,
+      row: rowNum,
       extra,
     });
   }

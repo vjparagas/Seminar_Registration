@@ -1,46 +1,34 @@
 import { ok, fail } from '@/lib/api';
 import { requireHost } from '@/lib/auth';
 import {
-  ensureTabs,
+  loadResponses,
+  checkHeaders,
+  cleanRows,
   readTab,
-  checkFormHeaders,
-  cleanFormRows,
+  SheetsError,
+  ACCEPTED_TAB,
 } from '@/lib/data';
 
-
 export async function GET(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   try {
-    await ensureTabs();
+    const { headers, rows } = await loadResponses();
+    const report = checkHeaders(headers, rows.slice(0, 50));
 
-    const formTab = process.env.FORM_TAB || 'Form Responses 1';
-    const formRows = await readTab(formTab);
-
-    if (formRows.length === 0) {
-      return fail('Responses tab is empty', 422, {
-        missing: ['Full Name', 'Email Address', 'Organization', 'Contact Number'],
-      });
-    }
-
-    const headers = formRows[0] || [];
-    const formCheck = checkFormHeaders(headers);
-
-    if (!formCheck.ok) {
+    if (!report.ready) {
       return fail(
         'Form check failed: standard titles are missing or duplicated',
         422,
         {
-          missing: formCheck.missing,
-          duplicates: formCheck.duplicates,
+          missing: report.missing,
+          duplicates: report.duplicates,
         }
       );
     }
 
-    const acceptedRows = await readTab('Accepted');
+    const acceptedRows = await readTab(ACCEPTED_TAB);
     const acceptedEmails = new Set<string>();
 
     for (let i = 1; i < acceptedRows.length; i++) {
@@ -50,10 +38,13 @@ export async function GET(request: Request) {
       }
     }
 
-    const { registrants, skipped } = cleanFormRows(formRows, acceptedEmails);
+    const { registrants, skipped } = cleanRows(rows, report, { acceptedEmails });
 
     return ok({ registrants, skipped });
   } catch (err: unknown) {
+    if (err instanceof SheetsError) {
+      return fail(err.message, err.status);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Failed to load registrants: ${message}`, 500);
   }

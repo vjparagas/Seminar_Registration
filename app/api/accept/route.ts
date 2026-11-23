@@ -1,11 +1,20 @@
 import { ok, fail, failZod } from '@/lib/api';
 import { requireHost } from '@/lib/auth';
 import { acceptSchema } from '@/lib/validate';
-import { readTab, appendRows, updateCell, FULL_NAME, EMAIL_ADDRESS, ORGANIZATION, CONTACT_NUMBER } from '@/lib/data';
+import {
+  loadResponses,
+  checkHeaders,
+  cleanRows,
+  readTab,
+  appendRows,
+  updateCell,
+  SheetsError,
+  ACCEPTED_TAB,
+} from '@/lib/data';
 import { generateTicketId } from '@/lib/tickets';
 import { generateQrBuffer } from '@/lib/qr';
 import { sendTicketEmail } from '@/lib/mailer';
-import { EmailStatus } from '@/lib/types';
+import { EmailStatus, Registrant } from '@/lib/types';
 
 export const maxDuration = 60;
 
@@ -21,10 +30,8 @@ export interface AcceptResultItem {
 }
 
 export async function POST(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -41,21 +48,32 @@ export async function POST(request: Request) {
   const results: AcceptResultItem[] = [];
 
   try {
-    const formTab = process.env.FORM_TAB || 'Form Responses 1';
-    const formRows = await readTab(formTab);
+    const { headers, rows } = await loadResponses();
+    const report = checkHeaders(headers, rows.slice(0, 50));
 
-    if (formRows.length < 2) {
-      return fail('No responses found in sheet', 400);
+    if (!report.ready) {
+      return fail(
+        'Form check failed: standard titles are missing or duplicated',
+        422,
+        {
+          missing: report.missing,
+          duplicates: report.duplicates,
+        }
+      );
     }
 
-    const headers = formRows[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, ' '));
-    const nameCol = headers.indexOf(FULL_NAME.toLowerCase());
-    const emailCol = headers.indexOf(EMAIL_ADDRESS.toLowerCase());
-    const orgCol = headers.indexOf(ORGANIZATION.toLowerCase());
-    const contactCol = headers.indexOf(CONTACT_NUMBER.toLowerCase());
+    // Read initial accepted emails to exclude from cleaned registrants
+    const initialAccepted = await readTab(ACCEPTED_TAB);
+    const initialAcceptedEmails = new Set<string>();
+    for (let r = 1; r < initialAccepted.length; r++) {
+      const accEmail = (initialAccepted[r][1] ?? '').trim().toLowerCase();
+      if (accEmail) initialAcceptedEmails.add(accEmail);
+    }
 
-    if (nameCol < 0 || emailCol < 0) {
-      return fail('Standard form columns missing in responses sheet', 422);
+    const { registrants } = cleanRows(rows, report, { acceptedEmails: initialAcceptedEmails });
+    const registrantMap = new Map<string, Registrant>();
+    for (const reg of registrants) {
+      registrantMap.set(reg.email, reg);
     }
 
     // Process sequentially as required
@@ -73,7 +91,7 @@ export async function POST(request: Request) {
 
       try {
         // Re-read Accepted right before checking and appending
-        const acceptedRows = await readTab('Accepted');
+        const acceptedRows = await readTab(ACCEPTED_TAB);
         let alreadyAccepted = false;
 
         for (let r = 1; r < acceptedRows.length; r++) {
@@ -93,26 +111,8 @@ export async function POST(request: Request) {
           continue;
         }
 
-        // Find earliest matching valid response for this email
-        let registrantData: { name: string; org: string; contact: string } | null = null;
-
-        for (let r = 1; r < formRows.length; r++) {
-          const row = formRows[r];
-          const rowEmail = (row[emailCol] ?? '').trim().toLowerCase();
-          if (rowEmail === email) {
-            const rawName = (row[nameCol] ?? '').trim();
-            if (rawName) {
-              registrantData = {
-                name: rawName,
-                org: orgCol >= 0 ? (row[orgCol] ?? '').trim() : '',
-                contact: contactCol >= 0 ? (row[contactCol] ?? '').trim() : '',
-              };
-              break;
-            }
-          }
-        }
-
-        if (!registrantData) {
+        const registrant = registrantMap.get(email);
+        if (!registrant) {
           results.push({
             email,
             status: 'skipped',
@@ -127,16 +127,14 @@ export async function POST(request: Request) {
         const initialCheckinStatus = 'Not Checked In';
         const checkinTime = '';
 
-        // Row position: acceptedRows has acceptedRows.length rows before this append.
-        // Google Sheets row number for newly appended row is (acceptedRows.length + 1)
         const targetRowNum = acceptedRows.length + 1;
 
         const newRow = [
           ticketId,
           email,
-          registrantData.name,
-          registrantData.org,
-          registrantData.contact,
+          registrant.name,
+          registrant.organization,
+          registrant.contact,
           acceptedAt,
           initialEmailStatus,
           initialCheckinStatus,
@@ -144,7 +142,7 @@ export async function POST(request: Request) {
         ];
 
         try {
-          await appendRows('Accepted', [newRow]);
+          await appendRows(ACCEPTED_TAB, [newRow]);
         } catch (err: unknown) {
           const reason = err instanceof Error ? err.message : String(err);
           results.push({
@@ -159,7 +157,7 @@ export async function POST(request: Request) {
         const qrBuffer = await generateQrBuffer(ticketId);
         const mailResult = await sendTicketEmail({
           to: email,
-          name: registrantData.name,
+          name: registrant.name,
           ticketId,
           qrBuffer,
         });
@@ -169,7 +167,7 @@ export async function POST(request: Request) {
           : `Failed: ${mailResult.error || 'Unknown error'}`;
 
         // Write G column: Email Status
-        await updateCell('Accepted', `G${targetRowNum}`, finalEmailStatus);
+        await updateCell(ACCEPTED_TAB, `G${targetRowNum}`, finalEmailStatus);
 
         results.push({
           email,
@@ -184,6 +182,9 @@ export async function POST(request: Request) {
 
     return ok({ results });
   } catch (err: unknown) {
+    if (err instanceof SheetsError) {
+      return fail(err.message, err.status);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Failed to accept registrants: ${message}`, 500);
   }

@@ -1,11 +1,9 @@
-import { ok, fail } from '@/lib/api';
+import { ok } from '@/lib/api';
 import { requireHost, COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   const response = ok({ message: 'Logged out successfully' });
   response.cookies.set({

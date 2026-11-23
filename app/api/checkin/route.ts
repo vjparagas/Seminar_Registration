@@ -1,7 +1,7 @@
 import { ok, fail, failZod } from '@/lib/api';
 import { requireHost } from '@/lib/auth';
 import { checkinSchema } from '@/lib/validate';
-import { readTab, updateCell } from '@/lib/data';
+import { readTab, updateCell, SheetsError, ACCEPTED_TAB } from '@/lib/data';
 
 // In-memory lock per ticket to prevent concurrent check-in race conditions.
 // Note: Google Sheets API does not offer native atomic compare-and-swap or row-level locking,
@@ -9,10 +9,8 @@ import { readTab, updateCell } from '@/lib/data';
 const checkinLocks = new Set<string>();
 
 export async function POST(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   let body: unknown;
   try {
@@ -36,7 +34,7 @@ export async function POST(request: Request) {
 
   try {
     // Re-read sheet immediately before updating to ensure freshest row state
-    const rows = await readTab('Accepted');
+    const rows = await readTab(ACCEPTED_TAB);
     let targetIndex = -1;
 
     for (let i = 1; i < rows.length; i++) {
@@ -67,8 +65,8 @@ export async function POST(request: Request) {
     const nowIso = new Date().toISOString();
 
     // Update Col H (Check-in Status) and Col I (Check-in Time)
-    await updateCell('Accepted', `H${targetRowNum}`, 'Checked In');
-    await updateCell('Accepted', `I${targetRowNum}`, nowIso);
+    await updateCell(ACCEPTED_TAB, `H${targetRowNum}`, 'Checked In');
+    await updateCell(ACCEPTED_TAB, `I${targetRowNum}`, nowIso);
 
     return ok({
       name,
@@ -76,6 +74,9 @@ export async function POST(request: Request) {
       ticketId,
     });
   } catch (err: unknown) {
+    if (err instanceof SheetsError) {
+      return fail(err.message, err.status);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Failed to process check-in: ${message}`, 500);
   } finally {

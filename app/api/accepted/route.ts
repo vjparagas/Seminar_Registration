@@ -1,19 +1,16 @@
 import { ok, fail } from '@/lib/api';
 import { requireHost } from '@/lib/auth';
-import { ensureTabs, readTab } from '@/lib/data';
+import { ensureTabs, readTab, SheetsError, ACCEPTED_TAB } from '@/lib/data';
 import { AcceptedRow, EmailStatus, CheckinStatus } from '@/lib/types';
 
-
 export async function GET(request: Request) {
-  const host = await requireHost(request);
-  if (!host) {
-    return fail('Unauthorized', 401);
-  }
+  const denied = await requireHost(request);
+  if (denied) return denied;
 
   try {
     await ensureTabs();
 
-    const rows = await readTab('Accepted');
+    const rows = await readTab(ACCEPTED_TAB);
     const accepted: AcceptedRow[] = [];
 
     // Row 0 is header: [Ticket ID, Email, Full Name, Organization, Contact Number, Accepted At, Email Status, Check-in Status, Check-in Time]
@@ -60,6 +57,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (err: unknown) {
+    if (err instanceof SheetsError) {
+      return fail(err.message, err.status);
+    }
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Failed to load accepted list: ${message}`, 500);
   }

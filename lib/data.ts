@@ -1,22 +1,44 @@
-// Data layer abstraction
-// In development, this delegates to lib/mocks until Member 3 provides lib/sheets.ts and lib/formStandard.ts
-
-export {
+import {
+  readTab as rawReadTab,
   getTabs,
   ensureTabs,
-  readTab,
   appendRows,
   updateCell,
-} from './mocks/mockSheets';
+  SheetsError,
+  ACCEPTED_TAB,
+  ACCEPTED_HEADERS,
+  loadResponses,
+} from './sheets';
+import { checkHeaders, cleanRows } from './formStandard';
 
 export {
-  FULL_NAME,
-  EMAIL_ADDRESS,
-  ORGANIZATION,
-  CONTACT_NUMBER,
-  STANDARD_TITLES,
-  // ASSUMED: checkFormHeaders from Member 3's lib/formStandard.ts
-  checkFormHeaders,
-  // ASSUMED: cleanFormRows from Member 3's lib/formStandard.ts
-  cleanFormRows,
-} from './mocks/mockFormStandard';
+  checkHeaders,
+  cleanRows,
+  loadResponses,
+  getTabs,
+  ensureTabs,
+  appendRows,
+  updateCell,
+  SheetsError,
+  ACCEPTED_TAB,
+  ACCEPTED_HEADERS,
+};
+
+/**
+ * Wraps readTab so every row is padded with "" up to the length of that tab's header row
+ * (Sheets API drops trailing empty cells).
+ */
+export async function readTab(tab: string, range = 'A:ZZ'): Promise<string[][]> {
+  const rows = await rawReadTab(tab, range);
+  if (rows.length === 0) return rows;
+
+  const headerLength = rows[0].length;
+  return rows.map((row, i) => {
+    if (i === 0 || row.length >= headerLength) return row;
+    const padded = [...row];
+    while (padded.length < headerLength) {
+      padded.push('');
+    }
+    return padded;
+  });
+}

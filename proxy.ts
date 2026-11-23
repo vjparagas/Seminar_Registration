@@ -9,19 +9,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = await requireHost(request);
-  if (!session) {
+  const denied = await requireHost(request);
+  if (denied) {
     if (pathname.startsWith('/dashboard')) {
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     }
-
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json(
-        { ok: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    return denied;
   }
 
   return NextResponse.next();
